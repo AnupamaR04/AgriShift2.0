@@ -52,23 +52,11 @@ export function SignupPage() {
         location: locationName || `${district}, ${country}`,
       });
 
-      // Navigate to /verify-email. Real email confirmation link/code sent by Supabase.
-      // NO OTP is passed in state. NO fake codes displayed.
-      navigate('/verify-email', {
-        state: {
-          email: email.trim().toLowerCase(),
-          message: 'Please check your email to verify your account.',
-        },
-      });
+      // Direct entry to Dashboard - Instant access with any email, no verification required!
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       const msg = err?.message || '';
-      if (msg.toLowerCase().includes('rate limit')) {
-        setError(
-          'Supabase email rate limit reached (max 3-4 emails/hour on free tier). In your Supabase Dashboard -> Authentication -> Users, you can click "..." next to your user and select "Auto Confirm User" to log in immediately, or add Custom SMTP in Settings.'
-        );
-      } else {
-        setError(msg || 'Failed to create farmer account. Please check your details.');
-      }
+      setError(msg || 'Failed to create farmer account. Please check your details.');
     } finally {
       setLoading(false);
     }

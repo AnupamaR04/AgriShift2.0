@@ -41,11 +41,6 @@ export function LoginPage() {
       const errMsg = err.message || 'Failed to authenticate.';
       setError(errMsg);
 
-      // Check if email not verified
-      if (err.code === 'EMAIL_NOT_VERIFIED' || errMsg.toLowerCase().includes('not verified') || errMsg.toLowerCase().includes('not confirmed')) {
-        setUnverifiedEmail(email.trim().toLowerCase());
-      }
-
       // Check if account was not found
       if (errMsg.toLowerCase().includes('account not found') || errMsg.toLowerCase().includes('register first')) {
         setIsAccountNotFound(true);
@@ -116,16 +111,6 @@ export function LoginPage() {
                     className="font-bold text-red-700 hover:underline flex items-center gap-1"
                   >
                     Click here to Register New Account ➔
-                  </Link>
-                </div>
-              )}
-              {unverifiedEmail && (
-                <div className="pt-2 border-t border-red-200 flex justify-end">
-                  <Link
-                    to={`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`}
-                    className="font-bold text-red-700 hover:underline flex items-center gap-1"
-                  >
-                    Verify Email / Resend Confirmation ➔
                   </Link>
                 </div>
               )}

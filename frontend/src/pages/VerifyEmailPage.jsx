@@ -111,18 +111,21 @@ export function VerifyEmailPage() {
             </p>
           </div>
 
-          {/* Clean Guidance Notice */}
-          <div className="mb-6 p-4 rounded-2xl bg-agri-mist/40 border border-agri-sand text-xs text-agri-forest space-y-2">
-            <div className="font-bold flex items-center gap-1.5 text-agri-forest">
-              <Mail className="w-4 h-4 text-agri-leaf shrink-0" />
-              <span>Verification email sent to:</span>
+          {/* Instant Access Notice */}
+          <div className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 space-y-3">
+            <div className="font-bold flex items-center gap-1.5 text-emerald-800">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Email verification is now optional!</span>
             </div>
-            <div className="font-mono font-bold text-agri-paddy bg-white px-2.5 py-1.5 rounded-lg border border-agri-sand break-all">
-              {email || 'your registered email'}
-            </div>
-            <p className="text-agri-forest/70 text-[11px] leading-relaxed pt-1">
-              Click the confirmation link inside the email to immediately activate your account, or enter the 6-digit code below if your email included one.
+            <p className="text-emerald-700 text-[12px] leading-relaxed">
+              You can go directly to your farming dashboard or sign in with your email and password right away.
             </p>
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center justify-center w-full py-2.5 px-4 rounded-xl bg-agri-forest text-white font-bold hover:bg-agri-forest/90 transition-all text-xs shadow-soft"
+            >
+              Continue to Dashboard ➔
+            </Link>
           </div>
 
           {error && (
