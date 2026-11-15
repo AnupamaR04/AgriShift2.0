@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Sprout, Lock, Mail, User, Phone, Globe, MapPin, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Sprout, Lock, Mail, User, Phone, Globe, MapPin, ArrowRight, AlertCircle, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import LanguageSelector from '../components/common/LanguageSelector';
@@ -50,16 +50,14 @@ export function SignupPage() {
         country,
         district,
         location: locationName || `${district}, ${country}`,
-        latitude: district === 'Palakkad' ? 10.7867 : 39.4699,
-        longitude: district === 'Palakkad' ? 76.6548 : -0.3763,
       });
 
-      // Requirement 4A: "After successful registration and verification, allow the user to log in."
-      // Navigate to /verify-email with email and OTP in state
+      // Navigate to /verify-email. Real email confirmation link/code sent by Supabase.
+      // NO OTP is passed in state. NO fake codes displayed.
       navigate('/verify-email', {
         state: {
           email: email.trim().toLowerCase(),
-          otpCode: res.otpCode,
+          message: 'Please check your email to verify your account.',
         },
       });
     } catch (err) {
@@ -96,6 +94,16 @@ export function SignupPage() {
             <p className="text-xs sm:text-sm text-agri-forest/70 mt-1">
               {t('auth_signup_sub')}
             </p>
+          </div>
+
+          {/* Database & Security indicator */}
+          <div className="mb-6 p-2.5 rounded-xl bg-agri-cream border border-agri-sand flex items-center gap-2 text-xs text-agri-forest">
+            <ShieldCheck className="w-4 h-4 text-agri-leaf shrink-0" />
+            <span>
+              {isSupabaseConfigured
+                ? 'Secured with Supabase Authentication & Row Level Security.'
+                : 'Supabase configuration required. Set VITE_SUPABASE_URL in your environment.'}
+            </span>
           </div>
 
           {error && (
@@ -233,8 +241,8 @@ export function SignupPage() {
             </div>
 
             <div className="p-3 rounded-xl bg-agri-cream border border-agri-sand text-xs text-agri-forest flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-agri-leaf shrink-0" />
-              <span>A 6-digit email verification code (OTP) will be dispatched to activate your account.</span>
+              <Mail className="w-4 h-4 text-agri-leaf shrink-0" />
+              <span>A verification link will be sent to your email to confirm your account.</span>
             </div>
 
             <Button

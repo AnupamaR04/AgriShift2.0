@@ -1,16 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
-import { authService } from '../services/authService';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  // Requirement 4: Unauthenticated visitors must NOT have a default user/profile
+  // Visitor starts strictly unauthenticated (null)
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize session on mount
+  // Initialize session from Supabase Auth on application load
   useEffect(() => {
     let mounted = true;
 
@@ -19,25 +18,25 @@ export const AuthProvider = ({ children }) => {
         if (isSupabaseConfigured() && supabase) {
           const { data: { session }, error: sessionError } = await supabase.auth.getSession();
           if (sessionError) {
-            console.warn('Supabase getSession error:', sessionError);
+            console.warn('Supabase getSession notice:', sessionError.message);
           }
 
           if (session?.user && mounted) {
-            setUser(session.user);
-            await loadSupabaseProfile(session.user.id, session.user);
-          } else {
-            // Check local registered session
-            const localSession = authService.getCurrentSession();
-            if (localSession?.user && mounted) {
-              setUser(localSession.user);
-              setProfile(localSession.profile);
+            // Only confirmed users should access profile & session
+            if (session.user.confirmed_at || session.user.email_confirmed_at) {
+              setUser(session.user);
+              await loadSupabaseProfile(session.user.id, session.user);
+            } else {
+              setUser(null);
+              setProfile(null);
             }
           }
 
+          // Listen for real-time auth state events (SIGN_IN, SIGN_OUT, TOKEN_REFRESHED)
           const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
               if (!mounted) return;
-              if (session?.user) {
+              if (session?.user && (session.user.confirmed_at || session.user.email_confirmed_at)) {
                 setUser(session.user);
                 await loadSupabaseProfile(session.user.id, session.user);
               } else {
@@ -51,15 +50,9 @@ export const AuthProvider = ({ children }) => {
             subscription?.unsubscribe?.();
           };
         } else {
-          // Local verified storage session
-          const localSession = authService.getCurrentSession();
-          if (localSession?.user && localSession?.profile && mounted) {
-            setUser(localSession.user);
-            setProfile(localSession.profile);
-          } else {
-            setUser(null);
-            setProfile(null);
-          }
+          // Supabase credentials not configured in environment
+          setUser(null);
+          setProfile(null);
         }
       } catch (err) {
         console.warn('Error during authentication initialization:', err);
@@ -78,8 +71,14 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  /**
+   * Loads farmer profile from Supabase 'profiles' table
+   * Safely creates the initial profile if this is a newly confirmed user without duplicates
+   */
   const loadSupabaseProfile = async (userId, authUser) => {
     try {
+      if (!supabase) return;
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -91,49 +90,50 @@ export const AuthProvider = ({ children }) => {
       }
 
       if (data) {
-        const cleanProfile = {
+        setProfile({
           ...data,
           id: userId,
           email: authUser?.email || data.email,
           full_name: data.full_name || authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || 'Farmer',
           phone: data.phone || authUser?.user_metadata?.phone || '',
-          district: data.district || 'Palakkad',
+          district: data.district || authUser?.user_metadata?.district || 'Palakkad',
           state: data.state || 'Kerala',
-          country: data.country || 'India',
-          location: data.location || `${data.district || 'Palakkad'}, ${data.state || 'Kerala'}`,
+          country: data.country || authUser?.user_metadata?.country || 'India',
+          location: data.location || authUser?.user_metadata?.location || 'Palakkad, Kerala, India',
           farm_name: data.farm_name || 'My Agricultural Parcel',
-          farm_size: data.farm_size != null && !isNaN(Number(data.farm_size)) ? Number(data.farm_size) : 2.5,
+          farm_size: data.farm_size != null ? Number(data.farm_size) : 2.5,
           farm_size_unit: data.farm_size_unit || 'acres',
-          latitude: data.latitude != null && !isNaN(Number(data.latitude)) && Number(data.latitude) !== 0 ? Number(data.latitude) : 10.7867,
-          longitude: data.longitude != null && !isNaN(Number(data.longitude)) && Number(data.longitude) !== 0 ? Number(data.longitude) : 76.6548,
+          latitude: data.latitude != null ? Number(data.latitude) : 10.7867,
+          longitude: data.longitude != null ? Number(data.longitude) : 76.6548,
           soil_type: data.soil_type || 'laterite',
-          soil_drainage: data.soil_drainage || 'well_drained',
-          soil_slope: data.soil_slope || 'gentle_slope',
           current_crop: data.current_crop || 'Paddy Rice',
-          previous_crop: data.previous_crop || 'Cowpea',
-          irrigation_method: data.irrigation_method || 'rainfed',
           farming_season: data.farming_season || 'mundakan',
           is_profile_complete: Boolean(data.is_profile_complete ?? (data.full_name && data.district)),
-        };
-        setProfile(cleanProfile);
+        });
       } else {
-        const fallbackProfile = {
+        // Safe profile creation from auth metadata
+        const metadata = authUser?.user_metadata || {};
+        const newProfile = {
           id: userId,
           email: authUser?.email || '',
-          full_name: authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || 'Farmer',
-          phone: authUser?.user_metadata?.phone || '',
-          district: authUser?.user_metadata?.district || 'Palakkad',
+          full_name: metadata.full_name || authUser?.email?.split('@')[0] || 'Farmer',
+          phone: metadata.phone || '',
+          district: metadata.district || 'Palakkad',
           state: 'Kerala',
-          country: 'India',
-          location: 'Palakkad, Kerala, India',
-          farm_name: 'My Agricultural Parcel',
-          farm_size: 2.5,
-          farm_size_unit: 'acres',
-          latitude: 10.7867,
-          longitude: 76.6548,
+          country: metadata.country || 'India',
+          location: metadata.location || 'Palakkad, Kerala, India',
           is_profile_complete: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         };
-        setProfile(fallbackProfile);
+
+        try {
+          await supabase.from('profiles').upsert(newProfile, { onConflict: 'id' });
+        } catch (insertErr) {
+          console.warn('Non-fatal profile upsert notice:', insertErr.message);
+        }
+
+        setProfile(newProfile);
       }
     } catch (err) {
       console.warn('Unexpected error in loadSupabaseProfile:', err);
@@ -141,118 +141,215 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Login: Strictly validates credentials.
-   * If email is unregistered, rejects with: "Account not found. Please register first."
-   */
-  const login = async (email, password) => {
-    if (isSupabaseConfigured() && supabase) {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) {
-        if (error.message?.includes('Invalid login credentials') || error.message?.includes('Email not confirmed')) {
-          // Check local registered directory to provide exact messaging
-          const localUser = authService.findUserByEmail(email);
-          if (!localUser) {
-            throw new Error('Account not found. Please register first.');
-          }
-        }
-        throw error;
-      }
-      setUser(data.user);
-      await loadSupabaseProfile(data.user.id, data.user);
-      return data;
-    } else {
-      // Local authentication service
-      const sessionData = await authService.loginUser(email, password);
-      setUser(sessionData.user);
-      setProfile(sessionData.profile);
-      return sessionData;
-    }
-  };
-
-  /**
-   * Registration: Creates account, generates 6-digit OTP code, and requires verification.
+   * Supabase Signup:
+   * Creates real account in Supabase Auth and triggers genuine verification email.
+   * NO mock code, NO fake client OTPs.
    */
   const signup = async (email, password, details = {}) => {
-    if (isSupabaseConfigured() && supabase) {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: details.fullName,
-            phone: details.phone,
-            district: details.district,
-            location: details.location,
-            country: details.country,
-          },
-        },
-      });
-      if (error) throw error;
-      return { success: true, email, supabaseData: data };
-    } else {
-      // Register with OTP dispatch
-      return await authService.registerUser({
-        email,
-        password,
-        fullName: details.fullName,
-        phone: details.phone,
-        location: details.location,
-        country: details.country,
-        district: details.district,
-        latitude: details.latitude,
-        longitude: details.longitude,
-      });
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error(
+        'Supabase is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment variables to enable real account registration and email delivery.'
+      );
     }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const redirectTo = `${window.location.origin}/auth/callback`;
+
+    const { data, error } = await supabase.auth.signUp({
+      email: cleanEmail,
+      password,
+      options: {
+        emailRedirectTo: redirectTo,
+        data: {
+          full_name: details.fullName,
+          phone: details.phone || '',
+          district: details.district || 'Palakkad',
+          country: details.country || 'India',
+          location: details.location || `${details.district || 'Palakkad'}, ${details.country || 'India'}`,
+        },
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    // Check if user already exists
+    if (data?.user?.identities && data.user.identities.length === 0) {
+      throw new Error('An account with this email already exists. Please sign in instead.');
+    }
+
+    return {
+      success: true,
+      email: cleanEmail,
+      user: data.user,
+      session: data.session,
+      needsEmailConfirmation: !data.session,
+    };
   };
 
   /**
-   * Verify email via 6-digit OTP code
+   * Supabase Login:
+   * Strictly verifies email and password against Supabase Auth.
+   * Checks if email is confirmed.
    */
-  const verifyOtp = async (email, otpCode) => {
-    const result = authService.verifyEmailOtp(email, otpCode);
-    return result;
+  const login = async (email, password) => {
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error(
+        'Supabase is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment variables.'
+      );
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password,
+    });
+
+    if (error) {
+      const msg = error.message || '';
+      // Supabase returns 'Email not confirmed' when user has not clicked verification link / confirmed OTP
+      if (msg.toLowerCase().includes('email not confirmed') || msg.toLowerCase().includes('not confirmed')) {
+        const unverifiedErr = new Error(
+          'Your email is not verified yet. Please check your inbox and verify your account.'
+        );
+        unverifiedErr.code = 'EMAIL_NOT_VERIFIED';
+        unverifiedErr.email = cleanEmail;
+        throw unverifiedErr;
+      }
+
+      if (msg.toLowerCase().includes('invalid login credentials')) {
+        throw new Error('Account not found or password incorrect. Please register first if you do not have an account.');
+      }
+
+      throw error;
+    }
+
+    if (!data.user) {
+      throw new Error('Authentication failed. Please verify your credentials.');
+    }
+
+    setUser(data.user);
+    await loadSupabaseProfile(data.user.id, data.user);
+    return data;
   };
 
   /**
-   * Resend OTP code
+   * Verifies an email OTP code directly against Supabase Auth backend
+   * (Applicable when Supabase email template sends a 6-digit confirmation code)
    */
-  const resendOtp = async (email) => {
-    return authService.resendVerificationOtp(email);
+  const verifyEmailOtp = async (email, token) => {
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error('Supabase is not configured. Real verification requires Supabase environment variables.');
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanToken = String(token).trim();
+
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: cleanEmail,
+      token: cleanToken,
+      type: 'signup',
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (data?.user) {
+      setUser(data.user);
+      await loadSupabaseProfile(data.user.id, data.user);
+    }
+
+    return { success: true, user: data.user, session: data.session };
   };
 
   /**
-   * Request password reset code
+   * Resends the Supabase confirmation email
+   */
+  const resendConfirmationEmail = async (email) => {
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error('Supabase is not configured.');
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const redirectTo = `${window.location.origin}/auth/callback`;
+
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: cleanEmail,
+      options: {
+        emailRedirectTo: redirectTo,
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return { success: true, message: 'Verification email resent! Please check your inbox and spam folder.' };
+  };
+
+  /**
+   * Requests a password reset link via Supabase Auth
    */
   const requestPasswordReset = async (email) => {
-    return authService.requestPasswordReset(email);
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error('Supabase is not configured.');
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const redirectTo = `${window.location.origin}/auth/callback?type=recovery`;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      redirectTo,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return {
+      success: true,
+      message: 'Password reset link sent! Please check your email inbox.',
+    };
   };
 
   /**
-   * Reset password with OTP code
+   * Updates password after recovery confirmation
    */
-  const resetPassword = async (email, otpCode, newPassword) => {
-    return authService.resetPasswordWithOtp(email, otpCode, newPassword);
+  const updateUserPassword = async (newPassword) => {
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error('Supabase is not configured.');
+    }
+
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) throw error;
+    return { success: true, user: data.user };
   };
 
   /**
-   * Logout: Clears all user and profile state to null and clears stored tokens
+   * Sign out: Strictly clears session and resets all user/profile states to null
    */
   const logout = async () => {
     if (isSupabaseConfigured() && supabase) {
       try {
         await supabase.auth.signOut();
       } catch (err) {
-        console.warn('Supabase sign out notice:', err);
+        console.warn('Supabase sign out notice:', err.message);
       }
     }
-    authService.clearSession();
     setUser(null);
     setProfile(null);
   };
 
+  /**
+   * Updates farmer profile attributes in public.profiles table
+   */
   const updateProfile = async (profileData) => {
     const updated = {
       ...profile,
@@ -265,22 +362,16 @@ export const AuthProvider = ({ children }) => {
       try {
         await supabase.from('profiles').upsert({ id: user.id, ...updated });
       } catch (err) {
-        console.warn('Supabase upsert failed:', err);
+        console.warn('Supabase profile upsert issue:', err.message);
       }
     }
 
     setProfile(updated);
-    // Update active session in storage
-    const current = authService.getCurrentSession();
-    if (current) {
-      current.profile = updated;
-      localStorage.setItem('agrishift_farmer_session', JSON.stringify(current));
-    }
     return updated;
   };
 
   const isProfileComplete = Boolean(
-    profile && profile.full_name && (profile.district || profile.location) && profile.latitude && profile.longitude
+    profile && profile.full_name && (profile.district || profile.location)
   );
 
   return (
@@ -291,10 +382,10 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         signup,
-        verifyOtp,
-        resendOtp,
+        verifyEmailOtp,
+        resendConfirmationEmail,
         requestPasswordReset,
-        resetPassword,
+        updateUserPassword,
         logout,
         updateProfile,
         isProfileComplete,

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Sprout, Lock, Mail, ArrowRight, AlertCircle, ShieldCheck, CheckCircle2, UserCheck } from 'lucide-react';
+import { Sprout, Lock, Mail, ArrowRight, AlertCircle, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import LanguageSelector from '../components/common/LanguageSelector';
@@ -35,31 +35,24 @@ export function LoginPage() {
     try {
       setLoading(true);
       await login(email, password);
-      // Navigate to destination
+      // Navigate to destination on successful login
       navigate(fromLocation, { replace: true });
     } catch (err) {
       const errMsg = err.message || 'Failed to authenticate.';
       setError(errMsg);
 
+      // Check if email not verified
+      if (err.code === 'EMAIL_NOT_VERIFIED' || errMsg.toLowerCase().includes('not verified') || errMsg.toLowerCase().includes('not confirmed')) {
+        setUnverifiedEmail(email.trim().toLowerCase());
+      }
+
       // Check if account was not found
       if (errMsg.toLowerCase().includes('account not found') || errMsg.toLowerCase().includes('register first')) {
         setIsAccountNotFound(true);
       }
-
-      // Check if email not verified
-      if (err.code === 'EMAIL_NOT_VERIFIED' || errMsg.toLowerCase().includes('not verified')) {
-        setUnverifiedEmail(email.trim().toLowerCase());
-      }
     } finally {
       setLoading(false);
     }
-  };
-
-  const fillDemoAccount = (demoEmail, demoPass) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
-    setError('');
-    setIsAccountNotFound(false);
   };
 
   return (
@@ -103,12 +96,12 @@ export function LoginPage() {
             <ShieldCheck className="w-4 h-4 text-agri-leaf shrink-0" />
             <span>
               {isSupabaseConfigured
-                ? 'Connected to your existing Supabase project.'
-                : 'AgriShift Secure Registered Users Database'}
+                ? 'Secured with Supabase Authentication.'
+                : 'Supabase configuration required in environment variables.'}
             </span>
           </div>
 
-          {/* Error Message with specific actionable guidance */}
+          {/* Error Message with actionable guidance */}
           {error && (
             <div className="mb-6 p-3.5 rounded-xl bg-red-50 border border-red-200 flex flex-col gap-2 text-xs text-red-800">
               <div className="flex items-start gap-2.5">
@@ -132,7 +125,7 @@ export function LoginPage() {
                     to={`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`}
                     className="font-bold text-red-700 hover:underline flex items-center gap-1"
                   >
-                    Enter 6-Digit Verification Code ➔
+                    Verify Email / Resend Confirmation ➔
                   </Link>
                 </div>
               )}
@@ -194,31 +187,7 @@ export function LoginPage() {
             </Button>
           </form>
 
-          {/* Quick Demo Credentials Helper */}
-          <div className="mt-6 p-3 rounded-2xl bg-agri-mist/40 border border-agri-sand text-[11px] text-agri-forest space-y-1.5">
-            <div className="font-bold flex items-center gap-1 text-agri-leaf">
-              <UserCheck className="w-3.5 h-3.5" />
-              <span>Verified Test Accounts (Click to Fill):</span>
-            </div>
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => fillDemoAccount('farmer@kerala.agri', 'admin')}
-                className="px-2.5 py-1 rounded-lg bg-white border border-agri-sand hover:bg-agri-cream font-medium text-agri-forest transition-colors"
-              >
-                farmer@kerala.agri (Palakkad)
-              </button>
-              <button
-                type="button"
-                onClick={() => fillDemoAccount('demo@agrishift.org', 'admin')}
-                className="px-2.5 py-1 rounded-lg bg-white border border-agri-sand hover:bg-agri-cream font-medium text-agri-forest transition-colors"
-              >
-                demo@agrishift.org (Global)
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-6 pt-6 border-t border-agri-sand text-center text-xs text-agri-forest/70">
+          <div className="mt-8 pt-6 border-t border-agri-sand text-center text-xs text-agri-forest/70">
             {t('auth_no_account')}{' '}
             <Link to="/signup" className="font-bold text-agri-paddy hover:underline">
               {t('auth_register_now')}

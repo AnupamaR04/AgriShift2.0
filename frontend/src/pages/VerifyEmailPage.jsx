@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Sprout, MailCheck, ShieldCheck, ArrowRight, AlertCircle, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Sprout, Mail, ShieldCheck, ArrowRight, AlertCircle, RefreshCw, CheckCircle2, Inbox } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import LanguageSelector from '../components/common/LanguageSelector';
@@ -9,21 +9,18 @@ import Button from '../components/ui/Button';
 export function VerifyEmailPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { verifyOtp, resendOtp } = useAuth();
+  const { verifyEmailOtp, resendConfirmationEmail, isSupabaseConfigured } = useAuth();
   const { t } = useTranslation();
 
   const queryParams = new URLSearchParams(location.search);
   const initialEmail = queryParams.get('email') || location.state?.email || '';
-  const initialOtp = location.state?.otpCode || '';
 
   const [email, setEmail] = useState(initialEmail);
-  const [otp, setOtp] = useState(initialOtp);
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState(
-    initialOtp ? `Verification code dispatched: ${initialOtp}` : ''
-  );
+  const [successMsg, setSuccessMsg] = useState(location.state?.message || '');
   const [countdown, setCountdown] = useState(60);
 
   useEffect(() => {
@@ -33,48 +30,47 @@ export function VerifyEmailPage() {
     }
   }, [countdown]);
 
-  const handleVerify = async (e) => {
+  // Code confirmation handler (for Supabase OTP code templates)
+  const handleVerifyCode = async (e) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
 
     if (!email) {
-      setError('Please provide your registered email.');
+      setError('Please provide your registered email address.');
       return;
     }
 
     if (!otp || otp.length < 6) {
-      setError(t('auth_error_otp_invalid'));
+      setError('Please enter the 6-digit verification code received in your email.');
       return;
     }
 
     try {
       setLoading(true);
-      await verifyOtp(email, otp);
+      await verifyEmailOtp(email, otp);
       setSuccessMsg(t('auth_success_verified'));
       setTimeout(() => {
-        navigate('/login', { state: { email, verified: true } });
+        navigate('/dashboard', { replace: true });
       }, 1500);
     } catch (err) {
-      setError(err.message || t('auth_error_otp_invalid'));
+      setError(err.message || 'Invalid or expired verification code. Please check your email.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Resend confirmation email
   const handleResend = async () => {
     if (countdown > 0 || !email) return;
     setError('');
     try {
       setResending(true);
-      const res = await resendOtp(email);
+      const res = await resendConfirmationEmail(email);
       setCountdown(60);
-      setSuccessMsg(res.message || 'A new 6-digit code has been dispatched.');
-      if (res.otpCode) {
-        setOtp(res.otpCode);
-      }
+      setSuccessMsg(res.message || 'A new verification email has been sent. Please check your inbox.');
     } catch (err) {
-      setError(err.message || 'Could not resend verification code.');
+      setError(err.message || 'Could not resend verification email.');
     } finally {
       setResending(false);
     }
@@ -96,15 +92,29 @@ export function VerifyEmailPage() {
       {/* Main Card */}
       <main className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-white rounded-3xl border border-agri-sand shadow-card p-8 sm:p-10">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <div className="inline-flex p-3 rounded-2xl bg-emerald-50 text-emerald-700 mb-3">
-              <MailCheck className="w-7 h-7 text-agri-leaf" />
+              <Inbox className="w-8 h-8 text-agri-leaf animate-bounce" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-agri-forest">
               {t('auth_verify_title')}
             </h1>
-            <p className="text-xs sm:text-sm text-agri-forest/70 mt-1">
-              {t('auth_verify_sub')}
+            <p className="text-xs sm:text-sm text-agri-forest/70 mt-1.5 leading-relaxed">
+              Please check your email to verify your account.
+            </p>
+          </div>
+
+          {/* Clean Guidance Notice */}
+          <div className="mb-6 p-4 rounded-2xl bg-agri-mist/40 border border-agri-sand text-xs text-agri-forest space-y-2">
+            <div className="font-bold flex items-center gap-1.5 text-agri-forest">
+              <Mail className="w-4 h-4 text-agri-leaf shrink-0" />
+              <span>Verification email sent to:</span>
+            </div>
+            <div className="font-mono font-bold text-agri-paddy bg-white px-2.5 py-1.5 rounded-lg border border-agri-sand break-all">
+              {email || 'your registered email'}
+            </div>
+            <p className="text-agri-forest/70 text-[11px] leading-relaxed pt-1">
+              Click the confirmation link inside the email to immediately activate your account, or enter the 6-digit code below if your email included one.
             </p>
           </div>
 
@@ -122,32 +132,18 @@ export function VerifyEmailPage() {
             </div>
           )}
 
-          <form onSubmit={handleVerify} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-agri-forest uppercase tracking-wider mb-1.5">
-                {t('auth_email_label')}
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="farmer@domain.com"
-                className="w-full px-4 py-3 rounded-xl border border-agri-sand bg-agri-cream/40 text-sm text-agri-forest placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-agri-leaf focus:bg-white"
-              />
-            </div>
-
+          {/* Optional Code Confirmation Form */}
+          <form onSubmit={handleVerifyCode} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-agri-forest uppercase tracking-wider mb-1.5">
                 {t('auth_otp_label')}
               </label>
               <input
                 type="text"
-                required
                 maxLength={6}
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                placeholder="6-digit code"
+                placeholder="••••••"
                 className="w-full text-center tracking-[0.5em] font-mono font-bold text-xl px-4 py-3 rounded-xl border border-agri-sand bg-agri-cream/40 text-agri-forest placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-agri-leaf focus:bg-white"
               />
             </div>
@@ -157,6 +153,7 @@ export function VerifyEmailPage() {
               variant="primary"
               size="lg"
               loading={loading}
+              disabled={!otp || otp.length < 6}
               className="w-full justify-center text-sm font-semibold shadow-soft mt-2"
             >
               {t('auth_verify_btn')}
@@ -164,9 +161,9 @@ export function VerifyEmailPage() {
             </Button>
           </form>
 
-          {/* Resend Code Section */}
+          {/* Rate-Limited Resend Confirmation Email */}
           <div className="mt-6 pt-4 border-t border-agri-sand flex items-center justify-between text-xs text-agri-forest/70">
-            <span>Didn't receive code?</span>
+            <span>Didn't receive the email?</span>
             <button
               type="button"
               onClick={handleResend}
@@ -174,7 +171,7 @@ export function VerifyEmailPage() {
               className="font-bold text-agri-paddy hover:underline disabled:opacity-50 disabled:no-underline flex items-center gap-1"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${resending ? 'animate-spin' : ''}`} />
-              {countdown > 0 ? `Resend in ${countdown}s` : 'Resend Code'}
+              {countdown > 0 ? `Resend in ${countdown}s` : 'Resend Email'}
             </button>
           </div>
 

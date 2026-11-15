@@ -13,6 +13,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import AuthCallbackPage from './pages/AuthCallbackPage';
 import ProfileSetupPage from './pages/ProfileSetupPage';
 import NotFoundPage from './pages/NotFoundPage';
 
@@ -42,6 +43,7 @@ export function App() {
                 <Route path="/signup" element={<SignupPage />} />
                 <Route path="/verify-email" element={<VerifyEmailPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
                 {/* Guided Profile Setup (requires login, but not complete profile) */}
                 <Route

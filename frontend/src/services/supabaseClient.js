@@ -13,34 +13,16 @@ export const isSupabaseConfigured = () => {
   );
 };
 
-// Create client if configured, otherwise provide safe fallback object
+// Create client if configured, otherwise return null
 export const supabase = isSupabaseConfigured()
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        storageKey: 'agrishift_supabase_auth_token',
       },
     })
   : null;
 
-// Local fallback store key for local development when credentials are not yet populated
-const LOCAL_STORAGE_KEY = 'agrishift_farmer_session';
-
-export const localAuthService = {
-  getSession: () => {
-    try {
-      const data = localStorage.getItem(LOCAL_STORAGE_KEY);
-      return data ? JSON.parse(data) : null;
-    } catch {
-      return null;
-    }
-  },
-  saveSession: (sessionData) => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(sessionData));
-  },
-  clearSession: () => {
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
-    localStorage.removeItem('agrishift_farmer_farm');
-  },
-};
+export default supabase;

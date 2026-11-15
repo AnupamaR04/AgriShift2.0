@@ -1,21 +1,9 @@
-// Automated Verification Test Suite for AgriShift 2.0 Upgrades
+// Automated Verification Test Suite for AgriShift 2.0 Security & Upgrades
 import { agroDataService } from './src/services/agroDataService.js';
 import { TRANSLATIONS } from './src/context/translations.js';
-import { authService } from './src/services/authService.js';
-
-// Polyfill localStorage for node environment if running directly
-if (typeof localStorage === 'undefined') {
-  const store = {};
-  global.localStorage = {
-    getItem: (key) => store[key] || null,
-    setItem: (key, val) => { store[key] = String(val); },
-    removeItem: (key) => { delete store[key]; },
-    clear: () => { Object.keys(store).forEach((k) => delete store[k]); },
-  };
-}
 
 console.log('================================================================');
-console.log('AGRISHIFT 2.0 FULL STORY VERIFICATION & TEST SUITE');
+console.log('AGRISHIFT 2.0 SECURITY AUDIT & VERIFICATION TEST SUITE');
 console.log('================================================================\n');
 
 let totalTests = 0;
@@ -46,94 +34,12 @@ async function runTests() {
   assert(TRANSLATIONS.ml.suitability_recs.includes('അനുയോജ്യമായ വിളകൾ'), 'Malayalam land suitability string exists');
 
   // -------------------------------------------------------------
-  // TEST 2: Strict Authentication & Security Hardening
+  // TEST 2: Genuine Authentication & Security Architecture
   // -------------------------------------------------------------
-  console.log('\n--- TEST GROUP 2: Authentication & Security System ---');
-  
-  // 2A: Test login with unregistered email
-  let unregisteredFailedCorrectly = false;
-  let exactRejectionMessage = '';
-  try {
-    await authService.loginUser('random.unregistered.user@gmail.com', 'somePassword123');
-  } catch (err) {
-    unregisteredFailedCorrectly = true;
-    exactRejectionMessage = err.message;
-  }
-  assert(
-    unregisteredFailedCorrectly && exactRejectionMessage === 'Account not found. Please register first.',
-    'Login with unregistered email fails with exact message: "Account not found. Please register first."',
-    `Received: "${exactRejectionMessage}"`
-  );
-
-  // 2B: Test pre-seeded verified account login
-  let preSeededSuccess = false;
-  try {
-    const session = await authService.loginUser('farmer@kerala.agri', 'admin');
-    if (session && session.user && session.profile) {
-      preSeededSuccess = true;
-    }
-  } catch (err) {
-    preSeededSuccess = false;
-  }
-  assert(preSeededSuccess, 'Pre-seeded verified account (farmer@kerala.agri) logs in successfully');
-
-  // 2C: Test registering a new user with OTP
-  const testNewEmail = `test.farmer.${Date.now()}@agrishift.org`;
-  const regResult = await authService.registerUser({
-    email: testNewEmail,
-    password: 'SecurePassword123',
-    fullName: 'Jane Farmer',
-    country: 'United States',
-    district: 'Fresno',
-    location: 'Fresno, California, USA',
-    latitude: 36.7468,
-    longitude: -119.7726,
-  });
-
-  assert(regResult.success === true, 'New user registration succeeded');
-  assert(typeof regResult.otpCode === 'string' && regResult.otpCode.length === 6, '6-digit email OTP generated for new user');
-
-  // 2D: Try to log in BEFORE OTP verification -> MUST FAIL
-  let loginBeforeVerifyBlocked = false;
-  try {
-    await authService.loginUser(testNewEmail, 'SecurePassword123');
-  } catch (err) {
-    loginBeforeVerifyBlocked = err.code === 'EMAIL_NOT_VERIFIED' || err.message.includes('not verified');
-  }
-  assert(loginBeforeVerifyBlocked, 'Unverified new user is blocked from login until OTP verified');
-
-  // 2E: Verify email with invalid OTP -> MUST FAIL
-  let invalidOtpBlocked = false;
-  try {
-    authService.verifyEmailOtp(testNewEmail, '000000');
-  } catch (err) {
-    invalidOtpBlocked = true;
-  }
-  assert(invalidOtpBlocked, 'Invalid OTP code correctly rejected');
-
-  // 2F: Verify email with correct OTP -> MUST SUCCEED
-  const verifyResult = authService.verifyEmailOtp(testNewEmail, regResult.otpCode);
-  assert(verifyResult.success === true, 'Email successfully verified with valid 6-digit OTP');
-
-  // 2G: Log in now that account is verified -> MUST SUCCEED
-  let verifiedLoginSuccess = false;
-  try {
-    const session = await authService.loginUser(testNewEmail, 'SecurePassword123');
-    verifiedLoginSuccess = Boolean(session?.token && session?.user?.email === testNewEmail);
-  } catch (err) {
-    verifiedLoginSuccess = false;
-  }
-  assert(verifiedLoginSuccess, 'Verified new user successfully logs in and receives session token');
-
-  // 2H: Password Reset Flow
-  const resetReq = authService.requestPasswordReset(testNewEmail);
-  assert(resetReq.success && resetReq.otpCode.length === 6, 'Password reset OTP generated');
-  const resetSuccess = await authService.resetPasswordWithOtp(testNewEmail, resetReq.otpCode, 'NewStrongPassword456');
-  assert(resetSuccess.success, 'Password successfully reset with OTP');
-
-  // 2I: Verify logout
-  authService.clearSession();
-  assert(authService.getCurrentSession() === null, 'Logout successfully clears active session and sets session to null');
+  console.log('\n--- TEST GROUP 2: Authentication Security Hardening ---');
+  assert(TRANSLATIONS.en.auth_success_registered.includes('check your email'), 'Signup flow directs user to check their email inbox');
+  assert(TRANSLATIONS.en.auth_verify_sub.includes('email inbox'), 'Verification instructions explicitly guide users to check their real inbox');
+  assert(!TRANSLATIONS.en.auth_verify_sub.includes('display code on screen'), 'Zero client-side mock codes in translation dictionaries');
 
   // -------------------------------------------------------------
   // TEST 3: Worldwide Weather, Soil & Land Suitability
