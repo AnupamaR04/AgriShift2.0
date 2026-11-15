@@ -61,7 +61,14 @@ export function SignupPage() {
         },
       });
     } catch (err) {
-      setError(err.message || 'Failed to create farmer account. Please check your details.');
+      const msg = err?.message || '';
+      if (msg.toLowerCase().includes('rate limit')) {
+        setError(
+          'Supabase email rate limit reached (max 3-4 emails/hour on free tier). In your Supabase Dashboard -> Authentication -> Users, you can click "..." next to your user and select "Auto Confirm User" to log in immediately, or add Custom SMTP in Settings.'
+        );
+      } else {
+        setError(msg || 'Failed to create farmer account. Please check your details.');
+      }
     } finally {
       setLoading(false);
     }

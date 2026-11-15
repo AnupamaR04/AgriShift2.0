@@ -70,7 +70,14 @@ export function VerifyEmailPage() {
       setCountdown(60);
       setSuccessMsg(res.message || 'A new verification email has been sent. Please check your inbox.');
     } catch (err) {
-      setError(err.message || 'Could not resend verification email.');
+      const msg = err?.message || '';
+      if (msg.toLowerCase().includes('rate limit')) {
+        setError(
+          'Email rate limit reached (Supabase free tier sends max 3-4 emails/hour). You can click "Auto Confirm User" in Supabase Dashboard -> Authentication -> Users to activate your account instantly.'
+        );
+      } else {
+        setError(err.message || 'Could not resend verification email.');
+      }
     } finally {
       setResending(false);
     }
