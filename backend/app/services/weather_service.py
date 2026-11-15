@@ -12,8 +12,8 @@ class WeatherService:
             f"?latitude={latitude}&longitude={longitude}"
             f"&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,wind_speed_10m"
             f"&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration"
-            f"&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm"
-            f"&timezone=Asia%2FKolkata&forecast_days=7"
+            f"&hourly=soil_moisture_0_to_7cm,soil_moisture_7_to_28cm"
+            f"&timezone=auto&forecast_days=7"
         )
 
         async with httpx.AsyncClient(timeout=10.0) as client:

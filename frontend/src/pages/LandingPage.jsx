@@ -30,9 +30,11 @@ import Footer from '../components/layout/Footer';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
+import { useTranslation } from '../context/LanguageContext';
 
 export function LandingPage() {
   const navigate = useNavigate();
+  const { t, isMalayalam } = useTranslation();
   const [selectedCropCategory, setSelectedCropCategory] = useState('food');
 
   const keralaCrops = {

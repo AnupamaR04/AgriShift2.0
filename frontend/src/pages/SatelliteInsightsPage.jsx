@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Satellite, Droplets, CloudSun, TrendingUp, Compass, ExternalLink, RefreshCw, ShieldCheck, Info } from 'lucide-react';
+import { Satellite, Droplets, CloudSun, TrendingUp, Compass, ExternalLink, RefreshCw, ShieldCheck, Info, Globe } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useLocationContext } from '../context/LocationContext';
 import { agroDataService } from '../services/agroDataService';
+import LocationSearchBar from '../components/common/LocationSearchBar';
 import Card, { CardHeader } from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 
 export function SatelliteInsightsPage() {
   const { profile } = useAuth();
+  const { selectedLocation } = useLocationContext();
   const [nasaData, setNasaData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const parseCoord = (val, fallback) => {
-    const num = Number(val);
-    return !isNaN(num) && num !== 0 ? num : fallback;
-  };
-  const lat = parseCoord(profile?.latitude, 10.7867);
-  const lng = parseCoord(profile?.longitude, 76.6548);
+  const lat = Number(selectedLocation?.latitude ?? profile?.latitude ?? 10.7867);
+  const lng = Number(selectedLocation?.longitude ?? profile?.longitude ?? 76.6548);
+  const locationName = selectedLocation?.name || profile?.farm_name || 'Active Parcel';
+  const locationCountry = selectedLocation?.country || 'Worldwide';
 
   useEffect(() => {
     async function loadData() {
@@ -30,6 +31,11 @@ export function SatelliteInsightsPage() {
 
   return (
     <div className="space-y-8">
+      {/* Worldwide Location Search */}
+      <div className="bg-white rounded-2xl p-4 border border-agri-sand shadow-soft">
+        <LocationSearchBar compact={false} />
+      </div>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-agri-sand">
         <div>
@@ -40,7 +46,7 @@ export function SatelliteInsightsPage() {
             Genuine Satellite Observations
           </h1>
           <p className="text-sm text-agri-forest/70 mt-1">
-            Orbital Earth observation telemetry for <strong className="text-agri-forest font-mono">{lat.toFixed(4)}° N, {lng.toFixed(4)}° E</strong> ({profile?.district || 'Palakkad'}, Kerala).
+            Orbital Earth observation telemetry for <strong className="text-agri-forest font-mono">{lat.toFixed(4)}°, {lng.toFixed(4)}°</strong> ({locationName}, {locationCountry}).
           </p>
         </div>
 

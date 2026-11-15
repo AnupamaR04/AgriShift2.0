@@ -1,22 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { CloudSun, Droplets, Thermometer, Wind, CloudRain, Sun, AlertTriangle, Compass, ShieldCheck } from 'lucide-react';
+import { CloudSun, Droplets, Thermometer, Wind, CloudRain, Sun, AlertTriangle, Compass, ShieldCheck, Globe } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { useAuth } from '../context/AuthContext';
+import { useLocationContext } from '../context/LocationContext';
+import { useTranslation } from '../context/LanguageContext';
 import { agroDataService } from '../services/agroDataService';
+import LocationSearchBar from '../components/common/LocationSearchBar';
 import Card, { CardHeader } from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 
 export function WeatherPage() {
   const { profile } = useAuth();
+  const { selectedLocation } = useLocationContext();
+  const { t, isMalayalam } = useTranslation();
+
   const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const parseCoord = (val, fallback) => {
-    const num = Number(val);
-    return !isNaN(num) && num !== 0 ? num : fallback;
-  };
-  const lat = parseCoord(profile?.latitude, 10.7867);
-  const lng = parseCoord(profile?.longitude, 76.6548);
+  const lat = Number(selectedLocation?.latitude ?? profile?.latitude ?? 10.7867);
+  const lng = Number(selectedLocation?.longitude ?? profile?.longitude ?? 76.6548);
+  const locationName = selectedLocation?.name || profile?.farm_name || 'Active Parcel';
+  const locationCountry = selectedLocation?.country || 'Worldwide';
 
   useEffect(() => {
     async function load() {
@@ -28,8 +32,8 @@ export function WeatherPage() {
     load();
   }, [lat, lng]);
 
-  const dailyForecast = weatherData?.daily?.time?.map((t, i) => ({
-    date: new Date(t).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' }),
+  const dailyForecast = weatherData?.daily?.time?.map((tVal, i) => ({
+    date: new Date(tVal).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
     max: weatherData.daily.temperature_2m_max[i],
     min: weatherData.daily.temperature_2m_min[i],
     rain: weatherData.daily.precipitation_sum[i] || 0,
@@ -38,16 +42,21 @@ export function WeatherPage() {
 
   return (
     <div className="space-y-8">
+      {/* Location Selector Bar */}
+      <div className="bg-white rounded-2xl p-4 border border-agri-sand shadow-soft">
+        <LocationSearchBar compact={false} />
+      </div>
+
       {/* Header */}
       <div className="pb-4 border-b border-agri-sand">
         <Badge variant="weather" size="md" className="mb-2">
-          Agro-Meteorology &amp; Monsoon Intelligence
+          Worldwide Agro-Meteorology &amp; Climate Intelligence
         </Badge>
         <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-agri-forest">
-          Kerala Weather &amp; Climate Intelligence
+          {t('nav_weather')}
         </h1>
         <p className="text-sm text-agri-forest/70 mt-1">
-          7-day ECMWF / Open-Meteo forecasts calibrated for <strong className="text-agri-forest capitalize">{profile?.district || 'Palakkad'}, Kerala</strong> ({lat.toFixed(4)}° N, {lng.toFixed(4)}° E).
+          7-day ECMWF / Open-Meteo forecasts calibrated for <strong className="text-agri-forest capitalize">{locationName}, {locationCountry}</strong> ({lat.toFixed(4)}° N, {lng.toFixed(4)}° E).
         </p>
       </div>
 
@@ -55,71 +64,70 @@ export function WeatherPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <Card className="p-5 space-y-2">
           <div className="flex items-center justify-between text-xs text-agri-forest/70 font-semibold uppercase">
-            <span>Air Temperature</span>
+            <span>{t('metric_temp')}</span>
             <Thermometer className="w-4 h-4 text-amber-700" />
           </div>
           <div className="text-3xl font-display font-extrabold text-agri-forest">
             {weatherData?.current ? `${weatherData.current.temperature_2m}°C` : '--'}
           </div>
           <div className="text-xs text-agri-forest/60">
-            Feels like {weatherData?.current ? `${weatherData.current.apparent_temperature}°C` : '--'}
+            {t('metric_feels')} {weatherData?.current ? `${weatherData.current.apparent_temperature}°C` : '--'}
           </div>
         </Card>
 
         <Card className="p-5 space-y-2">
           <div className="flex items-center justify-between text-xs text-agri-forest/70 font-semibold uppercase">
-            <span>Relative Humidity</span>
+            <span>{t('metric_humidity')}</span>
             <Droplets className="w-4 h-4 text-blue-700" />
           </div>
           <div className="text-3xl font-display font-extrabold text-agri-forest">
             {weatherData?.current ? `${weatherData.current.relative_humidity_2m}%` : '--'}
           </div>
           <div className="text-xs text-blue-800 font-medium">
-            High vapor pressure deficit
+            Vapor pressure deficit balanced
           </div>
         </Card>
 
         <Card className="p-5 space-y-2">
           <div className="flex items-center justify-between text-xs text-agri-forest/70 font-semibold uppercase">
-            <span>Wind Speed &amp; Gusts</span>
-            <Wind className="w-4 h-4 text-teal-700" />
+            <span>Weather Condition</span>
+            <CloudSun className="w-4 h-4 text-teal-700" />
           </div>
-          <div className="text-3xl font-display font-extrabold text-agri-forest">
-            {weatherData?.current ? `${weatherData.current.wind_speed_10m} km/h` : '--'}
+          <div className="text-2xl font-display font-extrabold text-agri-forest truncate">
+            {weatherData?.current?.conditionLabel || 'Partly Cloudy'}
           </div>
           <div className="text-xs text-agri-forest/60">
-            Safe for banana propping &amp; rubber tapping
+            Surface Wind: {weatherData?.current?.wind_speed_10m || 10} km/h
           </div>
         </Card>
 
         <Card className="p-5 space-y-2">
           <div className="flex items-center justify-between text-xs text-agri-forest/70 font-semibold uppercase">
-            <span>Precipitation (Now)</span>
-            <CloudRain className="w-4 h-4 text-emerald-700" />
+            <span>7-Day Expected Rain</span>
+            <CloudRain className="w-4 h-4 text-agri-leaf" />
           </div>
-          <div className="text-3xl font-display font-extrabold text-agri-forest">
-            {weatherData?.current ? `${weatherData.current.precipitation} mm` : '0.0 mm'}
+          <div className="text-3xl font-display font-extrabold text-agri-leaf">
+            {dailyForecast.reduce((acc, d) => acc + (Number(d.rain) || 0), 0).toFixed(1)} mm
           </div>
-          <div className="text-xs text-agri-paddy font-semibold">
-            {weatherData?.current?.precipitation > 0 ? 'Rain actively falling' : 'No rain at present'}
+          <div className="text-xs text-agri-forest/60">
+            GPM constellation observation
           </div>
         </Card>
       </div>
 
-      {/* 7-Day Rainfall Forecast Bar Chart */}
+      {/* 7-Day Chart */}
       <Card className="p-6">
         <CardHeader
-          title="7-Day Precipitation &amp; Evapotranspiration Forecast"
-          subtitle="Expected rainfall (mm) vs water lost through crop transpiration (ET₀ mm)"
-          icon={CloudRain}
+          title={t('chart_forecast_title')}
+          subtitle={`Highs and lows for ${locationName}, ${locationCountry}`}
+          icon={CloudSun}
         />
-
-        <div className="h-64 w-full">
+        <div className="h-72 w-full mt-4">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={dailyForecast}>
+            <AreaChart data={dailyForecast}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F3EDE2" />
               <XAxis dataKey="date" stroke="#183B28" fontSize={11} />
-              <YAxis unit=" mm" stroke="#183B28" fontSize={11} />
+              <YAxis unit="°C" stroke="#183B28" fontSize={11} domain={['auto', 'auto']} />
               <Tooltip
                 contentStyle={{
                   backgroundColor: '#FFFFFF',
@@ -128,49 +136,38 @@ export function WeatherPage() {
                   fontSize: '12px',
                 }}
               />
-              <Bar dataKey="rain" name="Rainfall (mm)" fill="#2A6A48" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="evapo" name="Evapotranspiration (mm)" fill="#DDA15E" radius={[4, 4, 0, 0]} />
-            </BarChart>
+              <Area type="monotone" dataKey="max" name={t('chart_max_temp')} stroke="#BC6C25" fill="#BC6C25" fillOpacity={0.2} strokeWidth={2} />
+              <Area type="monotone" dataKey="min" name={t('chart_min_temp')} stroke="#2A6A48" fill="#2A6A48" fillOpacity={0.2} strokeWidth={2} />
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       </Card>
 
-      {/* Dedicated Kerala Monsoon Matrix Section */}
-      <Card className="p-6 space-y-6">
+      {/* Rainfall and Evapotranspiration Chart */}
+      <Card className="p-6">
         <CardHeader
-          title="Kerala Dual Monsoon Agricultural Intelligence"
-          subtitle="Specific implications for your district's topography and soil"
-          icon={CloudSun}
+          title="Daily Precipitation & Evapotranspiration (ET0)"
+          subtitle="FAO Penman-Monteith crop water demand"
+          icon={Droplets}
         />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-agri-forest">
-          {/* SW Monsoon */}
-          <div className="p-4 rounded-2xl bg-agri-cream border border-agri-sand space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-sm text-agri-forest">1. Edavappathi (Southwest Monsoon)</span>
-              <Badge variant="forest" size="sm">June – September</Badge>
-            </div>
-            <p className="text-agri-forest/80 leading-relaxed">
-              Accounts for ~70% of Kerala's total annual rainfall. Saturated laterite soils on midland slopes risk massive topsoil erosion and nutrient leaching. Ensure bund fortification in paddy fields and cover crops under rubber trees.
-            </p>
-            <div className="text-[11px] font-semibold text-agri-paddy">
-              Key crops: Virippu Paddy, Ginger raised beds, Turmeric, Pepper spike growth.
-            </div>
-          </div>
-
-          {/* NE Monsoon */}
-          <div className="p-4 rounded-2xl bg-agri-cream border border-agri-sand space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-sm text-agri-forest">2. Thulavarsham (Northeast Monsoon)</span>
-              <Badge variant="forest" size="sm">October – November</Badge>
-            </div>
-            <p className="text-agri-forest/80 leading-relaxed">
-              Characterized by convective afternoon thunderstorms and lightning. High humidity elevates incidence of fungal diseases like Phytophthora foot rot in black pepper and Koleroga (mahali) in arecanut.
-            </p>
-            <div className="text-[11px] font-semibold text-agri-paddy">
-              Key crops: Mundakan winter paddy transplanting, pulses sowing, banana harvesting.
-            </div>
-          </div>
+        <div className="h-64 w-full mt-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={dailyForecast}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F3EDE2" />
+              <XAxis dataKey="date" stroke="#183B28" fontSize={11} />
+              <YAxis unit="mm" stroke="#183B28" fontSize={11} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#F3EDE2',
+                  borderRadius: '0.75rem',
+                  fontSize: '12px',
+                }}
+              />
+              <Bar dataKey="rain" name="Precipitation (mm)" fill="#52B788" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="evapo" name="Evapotranspiration (mm)" fill="#BC6C25" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </Card>
     </div>

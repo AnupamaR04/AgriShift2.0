@@ -11,7 +11,6 @@ import {
   PhoneCall,
   FileText,
   User,
-  Settings,
   LogOut,
   Menu,
   X,
@@ -22,12 +21,17 @@ import {
   Compass,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useLocationContext } from '../context/LocationContext';
+import { useTranslation } from '../context/LanguageContext';
+import LanguageSelector from '../components/common/LanguageSelector';
+import LocationSearchBar from '../components/common/LocationSearchBar';
 import ErrorBoundary from '../components/common/ErrorBoundary';
 
 export function DashboardLayout({ children }) {
   const { user, profile, logout } = useAuth();
+  const { selectedLocation } = useLocationContext();
+  const { t, isMalayalam } = useTranslation();
   const navigate = useNavigate();
-  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -37,34 +41,34 @@ export function DashboardLayout({ children }) {
 
   const navGroups = [
     {
-      group: 'Overview',
+      group: t('group_overview'),
       items: [
-        { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+        { name: t('nav_dashboard'), path: '/dashboard', icon: LayoutDashboard },
       ],
     },
     {
-      group: 'My Agriculture',
+      group: t('group_agriculture'),
       items: [
-        { name: 'My Farm & Map', path: '/dashboard/farm', icon: Compass },
-        { name: 'Satellite Insights', path: '/dashboard/satellite', icon: Satellite },
-        { name: 'Weather & Climate', path: '/dashboard/weather', icon: CloudSun },
-        { name: 'Crop Planner', path: '/dashboard/crops', icon: Sprout },
-        { name: 'Crop Calendar', path: '/dashboard/calendar', icon: Calendar },
-        { name: 'Crop Rotation', path: '/dashboard/rotation', icon: Layers },
+        { name: t('nav_farm'), path: '/dashboard/farm', icon: Compass },
+        { name: t('nav_satellite'), path: '/dashboard/satellite', icon: Satellite },
+        { name: t('nav_weather'), path: '/dashboard/weather', icon: CloudSun },
+        { name: t('nav_crops'), path: '/dashboard/crops', icon: Sprout },
+        { name: t('nav_calendar'), path: '/dashboard/calendar', icon: Calendar },
+        { name: t('nav_rotation'), path: '/dashboard/rotation', icon: Layers },
       ],
     },
     {
-      group: 'Resources & Benefits',
+      group: t('group_resources'),
       items: [
-        { name: 'Government Schemes', path: '/dashboard/schemes', icon: Landmark },
-        { name: 'Agricultural Support', path: '/dashboard/support', icon: PhoneCall },
-        { name: 'Reports & Exports', path: '/dashboard/reports', icon: FileText },
+        { name: t('nav_schemes'), path: '/dashboard/schemes', icon: Landmark },
+        { name: t('nav_support'), path: '/dashboard/support', icon: PhoneCall },
+        { name: t('nav_reports'), path: '/dashboard/reports', icon: FileText },
       ],
     },
     {
-      group: 'Account',
+      group: t('group_account'),
       items: [
-        { name: 'Farmer Profile', path: '/dashboard/profile', icon: User },
+        { name: t('nav_profile'), path: '/dashboard/profile', icon: User },
       ],
     },
   ];
@@ -94,8 +98,8 @@ export function DashboardLayout({ children }) {
               </div>
               <div>
                 <span className="text-xl font-display font-extrabold text-white tracking-tight">AgriShift</span>
-                <span className="block text-[10px] font-semibold text-agri-sage tracking-wider uppercase font-malayalam">
-                  അഗ്രിഷിഫ്റ്റ് കേരളം
+                <span className="block text-[10px] font-semibold text-agri-sage tracking-wider uppercase">
+                  {isMalayalam ? 'അഗ്രിഷിഫ്റ്റ് 2.0' : '2.0 Worldwide'}
                 </span>
               </div>
             </div>
@@ -107,20 +111,27 @@ export function DashboardLayout({ children }) {
             </button>
           </div>
 
-          {/* Active Farm Quick Pill */}
+          {/* Active Farm / Selected Worldwide Location Quick Pill */}
           <div className="mt-4 p-3 rounded-xl bg-white/5 border border-white/10">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-agri-sage/80">Active Parcel</div>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-agri-sage/80">
+              {t('loc_active')}
+            </div>
             <div className="text-sm font-bold text-white truncate mt-0.5">
-              {profile?.farm_name || 'Kerala Farm'}
+              {selectedLocation?.name || profile?.farm_name || 'Active Parcel'}
             </div>
             <div className="flex items-center gap-1.5 text-xs text-white/70 mt-1">
               <MapPin className="w-3 h-3 text-agri-lightleaf shrink-0" />
-              <span className="capitalize">{profile?.district || 'Palakkad'}, Kerala</span>
+              <span className="truncate">
+                {selectedLocation?.country ? `${selectedLocation.name}, ${selectedLocation.country}` : (profile?.district || 'Palakkad, Kerala')}
+              </span>
+            </div>
+            <div className="text-[10px] font-mono text-agri-sage/70 mt-1">
+              {Number(selectedLocation?.latitude ?? 10.7867).toFixed(4)}°, {Number(selectedLocation?.longitude ?? 76.6548).toFixed(4)}°
             </div>
           </div>
 
           {/* Navigation Links */}
-          <nav className="mt-6 space-y-6 overflow-y-auto max-h-[calc(100vh-280px)] pr-2">
+          <nav className="mt-6 space-y-6 overflow-y-auto max-h-[calc(100vh-320px)] pr-2">
             {navGroups.map((group, idx) => (
               <div key={idx}>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-white/40 px-3 mb-2">
@@ -161,19 +172,19 @@ export function DashboardLayout({ children }) {
               <div className="w-8 h-8 rounded-full bg-agri-paddy flex items-center justify-center font-bold text-xs text-white shrink-0">
                 {typeof profile?.full_name === 'string' && profile.full_name.trim().length > 0
                   ? profile.full_name.trim().charAt(0).toUpperCase()
-                  : 'K'}
+                  : 'F'}
               </div>
               <div className="truncate">
                 <div className="text-xs font-bold text-white truncate">
-                  {profile?.full_name || 'Kerala Farmer'}
+                  {profile?.full_name || user?.fullName || 'Active Farmer'}
                 </div>
-                <div className="text-[10px] text-white/60 truncate">{user?.email || 'farmer@kerala.agri'}</div>
+                <div className="text-[10px] text-white/60 truncate">{user?.email || 'farmer@domain.com'}</div>
               </div>
             </div>
 
             <button
               onClick={handleLogout}
-              title="Sign Out"
+              title={t('nav_logout')}
               className="p-2 rounded-lg text-white/60 hover:text-red-300 hover:bg-white/10 transition-colors"
             >
               <LogOut className="w-4 h-4" />
@@ -184,44 +195,50 @@ export function DashboardLayout({ children }) {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        {/* Top App Bar */}
-        <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-agri-sand h-18 flex items-center justify-between px-4 sm:px-8">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-agri-forest hover:bg-agri-sand"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
+        {/* Top App Bar with Worldwide Location Search and Language Selector */}
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-agri-sand py-2.5 px-4 sm:px-8">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 rounded-xl text-agri-forest hover:bg-agri-sand"
+                aria-label="Open sidebar"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
 
-            <div>
-              <div className="text-base sm:text-lg font-display font-extrabold text-agri-forest">
-                {profile?.full_name ? `Namaskaram, ${profile.full_name}` : 'AgriShift Kerala'}
-              </div>
-              <div className="text-xs text-agri-forest/60 flex items-center gap-2">
-                <span>{new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                <span>•</span>
-                <span className="font-semibold text-agri-paddy capitalize">
-                  {profile?.district || 'Palakkad'} District
-                </span>
+              <div className="hidden sm:block">
+                <div className="text-base sm:text-lg font-display font-extrabold text-agri-forest">
+                  {profile?.full_name ? `Welcome, ${profile.full_name}` : 'AgriShift Worldwide'}
+                </div>
+                <div className="text-xs text-agri-forest/60 flex items-center gap-2">
+                  <span>{new Date().toLocaleDateString(isMalayalam ? 'ml-IN' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  <span>•</span>
+                  <span className="font-semibold text-agri-paddy">
+                    {selectedLocation?.name || 'Palakkad'} ({selectedLocation?.country || 'Global'})
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-agri-mist text-agri-forest text-xs font-semibold">
-              <ShieldCheck className="w-3.5 h-3.5 text-agri-leaf" />
-              <span>NASA &amp; KAU Science Connected</span>
+            {/* Middle: Compact Worldwide Location Search Bar */}
+            <div className="flex-1 max-w-md">
+              <LocationSearchBar compact={true} />
             </div>
 
-            <button
-              onClick={() => navigate('/dashboard/schemes')}
-              className="p-2.5 rounded-xl border border-agri-sand text-agri-forest hover:bg-agri-sand/60 relative"
-              title="Notifications & Schemes"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-agri-terracotta"></span>
-            </button>
+            {/* Right: Language Selector and Notifications */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              <LanguageSelector />
+
+              <button
+                onClick={() => navigate('/dashboard/schemes')}
+                className="p-2 rounded-xl border border-agri-sand text-agri-forest hover:bg-agri-sand/60 relative"
+                title="Notifications & Schemes"
+              >
+                <Bell className="w-4 h-4" />
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-agri-terracotta"></span>
+              </button>
+            </div>
           </div>
         </header>
 

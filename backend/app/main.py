@@ -1,12 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.routers import health, satellite, weather, crops, schemes
+from app.routers import health, satellite, weather, crops, schemes, soil
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="AgriShift Backend — Kerala Agricultural Intelligence API"
+    description="AgriShift Backend — Worldwide Agricultural Intelligence API"
 )
 
 # CORS configuration
@@ -22,6 +22,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(satellite.router)
 app.include_router(weather.router)
+app.include_router(soil.router)
 app.include_router(crops.router)
 app.include_router(schemes.router)
 

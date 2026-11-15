@@ -1,22 +1,31 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Sprout, Lock, Mail, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Sprout, Lock, Mail, ArrowRight, AlertCircle, ShieldCheck, CheckCircle2, UserCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/LanguageContext';
+import LanguageSelector from '../components/common/LanguageSelector';
 import Button from '../components/ui/Button';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isProfileComplete, isSupabaseConfigured } = useAuth();
+  const { login, isSupabaseConfigured } = useAuth();
+  const { t } = useTranslation();
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => location.state?.email || '');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
+  const [isAccountNotFound, setIsAccountNotFound] = useState(false);
+
+  const fromLocation = location.state?.from?.pathname || '/dashboard';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setIsAccountNotFound(false);
+    setUnverifiedEmail('');
 
     if (!email || !password) {
       setError('Please provide both your registered email and password.');
@@ -26,25 +35,44 @@ export function LoginPage() {
     try {
       setLoading(true);
       await login(email, password);
-      // Navigate directly to dashboard on successful login
-      navigate('/dashboard');
+      // Navigate to destination
+      navigate(fromLocation, { replace: true });
     } catch (err) {
-      setError(err.message || 'Failed to authenticate. Please verify your credentials.');
+      const errMsg = err.message || 'Failed to authenticate.';
+      setError(errMsg);
+
+      // Check if account was not found
+      if (errMsg.toLowerCase().includes('account not found') || errMsg.toLowerCase().includes('register first')) {
+        setIsAccountNotFound(true);
+      }
+
+      // Check if email not verified
+      if (err.code === 'EMAIL_NOT_VERIFIED' || errMsg.toLowerCase().includes('not verified')) {
+        setUnverifiedEmail(email.trim().toLowerCase());
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const fillDemoAccount = (demoEmail, demoPass) => {
+    setEmail(demoEmail);
+    setPassword(demoPass);
+    setError('');
+    setIsAccountNotFound(false);
+  };
+
   return (
     <div className="min-h-screen bg-agri-cream flex flex-col justify-between">
-      {/* Top Simple Header */}
-      <header className="p-6">
+      {/* Top Header with Brand & Language Selector */}
+      <header className="p-6 flex items-center justify-between">
         <Link to="/" className="inline-flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-agri-forest flex items-center justify-center text-agri-mist shadow-soft">
             <Sprout className="w-5 h-5 text-agri-lightleaf" />
           </div>
           <span className="text-xl font-display font-extrabold text-agri-forest tracking-tight">AgriShift</span>
         </Link>
+        <LanguageSelector />
       </header>
 
       {/* Main Login Card */}
@@ -56,12 +84,19 @@ export function LoginPage() {
               <Lock className="w-6 h-6 text-agri-paddy" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-agri-forest">
-              Farmer Sign In
+              {t('auth_signin_title')}
             </h1>
             <p className="text-xs sm:text-sm text-agri-forest/70 mt-1">
-              Access your Kerala farm parcel &amp; satellite intelligence
+              {t('auth_signin_sub')}
             </p>
           </div>
+
+          {location.state?.verified && (
+            <div className="mb-6 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5 text-xs text-emerald-800">
+              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
+              <span>{t('auth_success_verified')}</span>
+            </div>
+          )}
 
           {/* Database indicator */}
           <div className="mb-6 p-2.5 rounded-xl bg-agri-cream border border-agri-sand flex items-center gap-2 text-xs text-agri-forest">
@@ -69,21 +104,45 @@ export function LoginPage() {
             <span>
               {isSupabaseConfigured
                 ? 'Connected to your existing Supabase project.'
-                : 'Development Mode: Using persistent local farmer storage.'}
+                : 'AgriShift Secure Registered Users Database'}
             </span>
           </div>
 
+          {/* Error Message with specific actionable guidance */}
           {error && (
-            <div className="mb-6 p-3.5 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-800">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
+            <div className="mb-6 p-3.5 rounded-xl bg-red-50 border border-red-200 flex flex-col gap-2 text-xs text-red-800">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+                <span className="font-semibold">{error}</span>
+              </div>
+              {isAccountNotFound && (
+                <div className="pt-2 border-t border-red-200 flex justify-end">
+                  <Link
+                    to="/signup"
+                    state={{ email }}
+                    className="font-bold text-red-700 hover:underline flex items-center gap-1"
+                  >
+                    Click here to Register New Account ➔
+                  </Link>
+                </div>
+              )}
+              {unverifiedEmail && (
+                <div className="pt-2 border-t border-red-200 flex justify-end">
+                  <Link
+                    to={`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`}
+                    className="font-bold text-red-700 hover:underline flex items-center gap-1"
+                  >
+                    Enter 6-Digit Verification Code ➔
+                  </Link>
+                </div>
+              )}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-agri-forest uppercase tracking-wider mb-1.5">
-                Registered Email Address
+                {t('auth_email_label')}
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-agri-forest/50 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -92,7 +151,7 @@ export function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="farmer@kerala.agri"
+                  placeholder="farmer@domain.com"
                   className="w-full pl-10 pr-4 py-3 rounded-xl border border-agri-sand bg-agri-cream/40 text-sm text-agri-forest placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-agri-leaf focus:bg-white"
                 />
               </div>
@@ -101,8 +160,14 @@ export function LoginPage() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-semibold text-agri-forest uppercase tracking-wider">
-                  Password
+                  {t('auth_password_label')}
                 </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs text-agri-paddy hover:underline font-semibold"
+                >
+                  {t('auth_forgot_link')}
+                </Link>
               </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-agri-forest/50 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -124,22 +189,46 @@ export function LoginPage() {
               loading={loading}
               className="w-full justify-center text-sm font-semibold shadow-soft mt-2"
             >
-              Sign In to Farm
+              {t('auth_signin_btn')}
               <ArrowRight className="w-4 h-4 ml-1.5" />
             </Button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-agri-sand text-center text-xs text-agri-forest/70">
-            Don't have a registered farm yet?{' '}
+          {/* Quick Demo Credentials Helper */}
+          <div className="mt-6 p-3 rounded-2xl bg-agri-mist/40 border border-agri-sand text-[11px] text-agri-forest space-y-1.5">
+            <div className="font-bold flex items-center gap-1 text-agri-leaf">
+              <UserCheck className="w-3.5 h-3.5" />
+              <span>Verified Test Accounts (Click to Fill):</span>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => fillDemoAccount('farmer@kerala.agri', 'admin')}
+                className="px-2.5 py-1 rounded-lg bg-white border border-agri-sand hover:bg-agri-cream font-medium text-agri-forest transition-colors"
+              >
+                farmer@kerala.agri (Palakkad)
+              </button>
+              <button
+                type="button"
+                onClick={() => fillDemoAccount('demo@agrishift.org', 'admin')}
+                className="px-2.5 py-1 rounded-lg bg-white border border-agri-sand hover:bg-agri-cream font-medium text-agri-forest transition-colors"
+              >
+                demo@agrishift.org (Global)
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-agri-sand text-center text-xs text-agri-forest/70">
+            {t('auth_no_account')}{' '}
             <Link to="/signup" className="font-bold text-agri-paddy hover:underline">
-              Create Farmer Account
+              {t('auth_register_now')}
             </Link>
           </div>
         </div>
       </main>
 
       <footer className="p-6 text-center text-xs text-agri-forest/60">
-        AgriShift Kerala. Genuine satellite &amp; weather observations.
+        AgriShift 2.0 • Worldwide Agricultural Intelligence Platform
       </footer>
     </div>
   );

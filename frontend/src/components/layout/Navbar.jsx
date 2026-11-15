@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Sprout, Menu, X, ArrowRight, ShieldCheck, Globe, Satellite, Sparkles, LayoutDashboard } from 'lucide-react';
+import { useTranslation } from '../../context/LanguageContext';
+import LanguageSelector from '../common/LanguageSelector';
 import Button from '../ui/Button';
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { t, isMalayalam } = useTranslation();
 
   const navLinks = [
-    { name: 'Features', href: '#features' },
+    { name: t('nav_features'), href: '#features' },
     { name: 'How It Works', href: '#how-it-works' },
     { name: 'NASA Tech', href: '#nasa-tech' },
-    { name: 'Kerala Agriculture', href: '#kerala-agri' },
-    { name: 'Govt Schemes', href: '#schemes' },
+    { name: t('soil_title').split(' ')[0], href: '#soil-intel' },
+    { name: t('nav_schemes'), href: '#schemes' },
     { name: 'About', href: '#about' },
   ];
 
@@ -26,7 +29,7 @@ export function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-agri-sand transition-all">
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-agri-sand transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo & Brand Identity */}
@@ -37,10 +40,10 @@ export function Navbar() {
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
                 <span className="text-2xl font-display font-extrabold text-agri-forest tracking-tight">AgriShift</span>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-agri-mist text-agri-forest font-sans">KL</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-sans">2.0 Global</span>
               </div>
-              <span className="text-[11px] font-semibold text-agri-paddy tracking-wide -mt-0.5 font-malayalam">
-                അഗ്രിഷിഫ്റ്റ് • Kerala
+              <span className={`text-[11px] font-semibold text-agri-paddy tracking-wide -mt-0.5 ${isMalayalam ? 'font-malayalam' : ''}`}>
+                {isMalayalam ? 'അഗ്രിഷിഫ്റ്റ് • ആഗോള കാർഷിക ഇന്റലിജൻസ്' : 'Worldwide Agricultural Intelligence'}
               </span>
             </div>
           </Link>
@@ -59,15 +62,17 @@ export function Navbar() {
             ))}
           </nav>
 
-          {/* Right Action Buttons with Direct Dashboard Launcher */}
+          {/* Right Action: Language Selector & Launch Buttons */}
           <div className="hidden sm:flex items-center space-x-3">
+            <LanguageSelector />
+
             <Button
               variant="outline"
               size="sm"
               onClick={() => navigate('/login')}
               className="text-agri-forest font-medium"
             >
-              Sign In
+              {t('nav_login')}
             </Button>
             <Button
               variant="primary"
@@ -76,12 +81,13 @@ export function Navbar() {
               className="font-bold shadow-soft flex items-center gap-1.5 bg-agri-forest hover:bg-agri-dark"
             >
               <LayoutDashboard className="w-4 h-4 text-agri-lightleaf" />
-              Launch Dashboard
+              {t('nav_dashboard')}
             </Button>
           </div>
 
           {/* Mobile menu button */}
-          <div className="flex sm:hidden items-center">
+          <div className="flex sm:hidden items-center gap-2">
+            <LanguageSelector />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-xl text-agri-forest hover:bg-agri-sand/80 focus:outline-none"
@@ -119,7 +125,7 @@ export function Navbar() {
               className="w-full justify-center shadow-soft font-bold flex items-center gap-2"
             >
               <LayoutDashboard className="w-4 h-4 text-agri-lightleaf" />
-              Launch Dashboard
+              {t('nav_dashboard')}
             </Button>
             <Button
               variant="outline"
@@ -130,7 +136,7 @@ export function Navbar() {
               }}
               className="w-full justify-center"
             >
-              Sign In to Farm
+              {t('nav_login')}
             </Button>
           </div>
         </div>

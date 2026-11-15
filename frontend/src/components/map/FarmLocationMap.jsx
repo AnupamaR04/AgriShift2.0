@@ -140,6 +140,15 @@ export function FarmLocationMap({
   );
 
   useEffect(() => {
+    const lat = Number(initialLat);
+    const lng = Number(initialLng);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      setPosition([lat, lng]);
+      setMapCenter([lat, lng]);
+    }
+  }, [initialLat, initialLng]);
+
+  useEffect(() => {
     if (selectedDistrict) {
       const districtData = KERALA_DISTRICTS.find(
         (d) => d.id === selectedDistrict || d.name.toLowerCase().includes(selectedDistrict.toLowerCase())
